@@ -58,7 +58,7 @@ const authLimiter = rateLimit({
   message: { success: false, message: "Too many login attempts. Please try again in 15 minutes." },
 });
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index (1).html"));
+  res.sendFile(path.join(__dirname, "public", "index (2).html"));
 });
 // ── REST API Routes ────────────────────────────────────────
 app.use("/api/auth", authLimiter, authRoutes);
