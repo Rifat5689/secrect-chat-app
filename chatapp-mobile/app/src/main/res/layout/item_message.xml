@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingVertical="4dp">
+
+    <!-- ─── SENT MESSAGE BUBBLE (Right) ─── -->
+    <LinearLayout
+        android:id="@+id/layoutSent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:orientation="vertical"
+        android:gravity="end"
+        android:maxWidth="280dp"
+        android:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@color/bubble_sent"
+            android:padding="10dp">
+
+            <!-- Sent Image Media -->
+            <ImageView
+                android:id="@+id/ivSentImage"
+                android:layout_width="200dp"
+                android:layout_height="150dp"
+                android:scaleType="centerCrop"
+                android:layout_marginBottom="4dp"
+                android:visibility="gone" />
+
+            <!-- Sent Video Media Thumbnail Wrapper -->
+            <FrameLayout
+                android:id="@+id/layoutSentVideo"
+                android:layout_width="200dp"
+                android:layout_height="150dp"
+                android:layout_marginBottom="4dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/ivSentVideoThumbnail"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:background="@color/black" />
+
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_gravity="center"
+                    android:src="@android:drawable/ic_media_play"
+                    app:tint="@color/white" />
+
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/tvSentText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sent Message"
+                android:textColor="@color/white"
+                android:textSize="14sp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_gravity="end"
+                android:layout_marginTop="2dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvSentTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="12:00 PM"
+                    android:textColor="#D1D5DB"
+                    android:textSize="9sp" />
+
+                <TextView
+                    android:id="@+id/tvSentTicks"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="✓"
+                    android:textColor="@color/white"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Sent Reactions Display -->
+        <TextView
+            android:id="@+id/tvSentReactions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@color/card_dark"
+            android:text="👍"
+            android:textColor="@color/white"
+            android:textSize="11sp"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginEnd="8dp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- ─── RECEIVED MESSAGE BUBBLE (Left) ─── -->
+    <LinearLayout
+        android:id="@+id/layoutReceived"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:orientation="vertical"
+        android:gravity="start"
+        android:maxWidth="280dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@color/bubble_received"
+            android:padding="10dp">
+
+            <!-- Received Image Media -->
+            <ImageView
+                android:id="@+id/ivReceivedImage"
+                android:layout_width="200dp"
+                android:layout_height="150dp"
+                android:scaleType="centerCrop"
+                android:layout_marginBottom="4dp"
+                android:visibility="gone" />
+
+            <!-- Received Video Media Thumbnail Wrapper -->
+            <FrameLayout
+                android:id="@+id/layoutReceivedVideo"
+                android:layout_width="200dp"
+                android:layout_height="150dp"
+                android:layout_marginBottom="4dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/ivReceivedVideoThumbnail"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:background="@color/black" />
+
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_gravity="center"
+                    android:src="@android:drawable/ic_media_play"
+                    app:tint="@color/white" />
+
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/tvReceivedText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Received Message"
+                android:textColor="@color/text_light"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tvReceivedTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginTop="2dp"
+                android:text="12:00 PM"
+                android:textColor="@color/text_muted"
+                android:textSize="9sp" />
+
+        </LinearLayout>
+
+        <!-- Received Reactions Display -->
+        <TextView
+            android:id="@+id/tvReceivedReactions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@color/card_dark"
+            android:text="❤️"
+            android:textColor="@color/white"
+            android:textSize="11sp"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:layout_marginTop="-4dp"
+            android:layout_marginStart="8dp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+</RelativeLayout>

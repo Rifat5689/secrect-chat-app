@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="12dp"
+    android:layout_marginVertical="4dp"
+    android:background="@color/card_dark">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvRequesterName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Requester Name"
+            android:textColor="@color/text_light"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvRequesterMobile"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Mobile Number"
+            android:textColor="@color/accent"
+            android:textSize="11sp"
+            android:layout_marginTop="1dp" />
+
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btnAccept"
+        android:layout_width="wrap_content"
+        android:layout_height="36dp"
+        android:text="Accept"
+        android:textSize="11sp"
+        android:backgroundTint="@color/primary"
+        android:textColor="@color/white"
+        android:layout_marginEnd="6dp" />
+
+    <Button
+        android:id="@+id/btnReject"
+        android:layout_width="wrap_content"
+        android:layout_height="36dp"
+        android:text="Reject"
+        android:textSize="11sp"
+        android:backgroundTint="@color/border_color"
+        android:textColor="@color/text_light" />
+
+</LinearLayout>
