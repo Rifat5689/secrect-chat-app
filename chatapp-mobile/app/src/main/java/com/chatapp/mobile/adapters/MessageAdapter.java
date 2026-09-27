@@ -91,7 +91,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
                             .into(holder.ivSentImage);
                     holder.ivSentImage.setOnClickListener(v -> listener.onMediaClick(msg.fileUrl, "image"));
                 } else if ("video".equalsIgnoreCase(msg.messageType) && msg.fileUrl != null && !msg.fileUrl.isEmpty()) {
-                    holder.layoutSentVideo.setVisibility(View.solid ? View.VISIBLE : View.VISIBLE);
+                    holder.layoutSentVideo.setVisibility(View.VISIBLE);
                     holder.ivSentImage.setVisibility(View.GONE);
                     // Use fileUrl as thumbnail loader since glide can extract first frame from video url!
                     Glide.with(holder.itemView.getContext())

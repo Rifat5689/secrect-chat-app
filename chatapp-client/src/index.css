@@ -1,13 +1,143 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+/* WhatsApp exact font stack and global resets */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --wa-green: #00A884;
+  --wa-teal-dark: #008069;
+  --wa-teal-header: #008069;
+  --wa-light-green: #D9FDD3;
+  --wa-bg: #eae6df;
+  --wa-chat-bg: #ECE5DD;
+  --wa-panel-bg: #ffffff;
+  --wa-sidebar-bg: #ffffff;
+  --wa-input-bg: #f0f2f5;
+  --wa-border: #e9edef;
+  --wa-text-primary: #111b21;
+  --wa-text-secondary: #667781;
+  --wa-text-green: #008069;
+  --wa-blue-tick: #53BDEB;
+  --wa-date-bubble: #E2DACD;
+  --wa-danger: #ea0038;
+  --wa-unread-badge: #25D366;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Segoe UI', Helvetica Neue, Helvetica, Lucida Grande, Arial, Ubuntu, Cantarell, Fira Sans, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #dddbd1;
+  color: var(--wa-text-primary);
+  font-size: 14.2px;
+  line-height: 1.45;
+}
+
+/* WhatsApp-style scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cccccc;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #aaaaaa;
+}
+
+/* Utility classes for mobile responsiveness */
+@media (max-width: 768px) {
+  .wa-sidebar {
+    width: 100% !important;
+    min-width: 100% !important;
   }
-  
-  body {
-    font-family: var(--font-body);
-    @apply antialiased text-slate-900 bg-slate-50 transition-colors duration-300;
+  .wa-chat-panel {
+    width: 100% !important;
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 50 !important;
   }
+  .wa-hide-mobile {
+    display: none !important;
+  }
+  .wa-show-mobile {
+    display: flex !important;
+  }
+  .wa-messages-padding {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .wa-show-mobile-only {
+    display: none !important;
+  }
+}
+
+/* WhatsApp chat wallpaper doodle */
+.wa-chat-wallpaper {
+  background-color: #ECE5DD;
+  background-image: url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cstyle%3E.a%7Bfill:%23c9c2b7;opacity:0.12%7D%3C/style%3E%3C/defs%3E%3Ccircle class='a' cx='35' cy='25' r='3'/%3E%3Ccircle class='a' cx='120' cy='50' r='2.5'/%3E%3Ccircle class='a' cx='250' cy='30' r='3'/%3E%3Ccircle class='a' cx='350' cy='45' r='2'/%3E%3Ccircle class='a' cx='80' cy='100' r='2.5'/%3E%3Ccircle class='a' cx='180' cy='90' r='3'/%3E%3Ccircle class='a' cx='300' cy='110' r='2'/%3E%3Ccircle class='a' cx='45' cy='180' r='2'/%3E%3Ccircle class='a' cx='150' cy='170' r='3'/%3E%3Ccircle class='a' cx='270' cy='185' r='2.5'/%3E%3Ccircle class='a' cx='370' cy='175' r='2'/%3E%3Ccircle class='a' cx='100' cy='250' r='3'/%3E%3Ccircle class='a' cx='200' cy='240' r='2'/%3E%3Ccircle class='a' cx='320' cy='260' r='3'/%3E%3Ccircle class='a' cx='60' cy='320' r='2.5'/%3E%3Ccircle class='a' cx='170' cy='330' r='2'/%3E%3Ccircle class='a' cx='280' cy='310' r='3'/%3E%3Ccircle class='a' cx='380' cy='340' r='2'/%3E%3Cpath class='a' d='M50 60l4-4 4 4-4 4z'/%3E%3Cpath class='a' d='M200 140l3.5-3.5 3.5 3.5-3.5 3.5z'/%3E%3Cpath class='a' d='M340 200l4-4 4 4-4 4z'/%3E%3Cpath class='a' d='M130 290l3-3 3 3-3 3z'/%3E%3Cpath class='a' d='M250 370l4-4 4 4-4 4z'/%3E%3Cpath class='a' d='M370 100l3-3 3 3-3 3z'/%3E%3C/svg%3E");
+}
+
+/* WhatsApp-style hover on chat list items */
+.wa-chat-item:hover {
+  background-color: #f5f6f6 !important;
+}
+.wa-chat-item-active {
+  background-color: #f0f2f5 !important;
+}
+
+/* Typing animation dots */
+@keyframes typingDot {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-2px); }
+}
+.wa-typing-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #8696a0;
+  margin: 0 1px;
+}
+.wa-typing-dot:nth-child(1) { animation: typingDot 1.4s infinite 0s; }
+.wa-typing-dot:nth-child(2) { animation: typingDot 1.4s infinite 0.2s; }
+.wa-typing-dot:nth-child(3) { animation: typingDot 1.4s infinite 0.4s; }
+
+/* Message bubble hover actions */
+.wa-msg-bubble:hover .wa-msg-action {
+  display: flex !important;
+}
+
+/* Quick reactions bar on hover */
+.wa-msg-row:hover .wa-quick-react {
+  display: flex !important;
+}
+
+/* Spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.wa-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
 }

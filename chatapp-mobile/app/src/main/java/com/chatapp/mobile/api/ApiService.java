@@ -49,4 +49,10 @@ public interface ApiService {
     @Multipart
     @POST("api/upload")
     Call<ApiResponse<Map<String, String>>> uploadFile(@Header("Authorization") String token, @Part MultipartBody.Part file);
+
+    @DELETE("api/messages/{messageId}/for-me")
+    Call<ApiResponse<Object>> deleteMessageForMe(@Header("Authorization") String token, @Path("messageId") String messageId);
+
+    @DELETE("api/messages/{messageId}/for-everyone")
+    Call<ApiResponse<Object>> deleteMessageForEveryone(@Header("Authorization") String token, @Path("messageId") String messageId);
 }

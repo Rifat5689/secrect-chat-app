@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -28,6 +29,7 @@ import com.chatapp.mobile.models.ApiResponse;
 import com.chatapp.mobile.models.Message;
 import com.chatapp.mobile.models.User;
 import com.chatapp.mobile.utils.SharedPrefManager;
+import com.bumptech.glide.Glide;
 import com.chatapp.mobile.utils.SocketManager;
 import com.google.gson.Gson;
 
@@ -123,9 +125,13 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.On
         mSocket = SocketManager.getSocket(pref.getToken());
         if (mSocket != null) {
             setupSocketListeners();
-            mSocket.emit("message:read", new Gson().toJson(new HashMap<String, String>() {{
-                put("senderId", activeFriend._id);
-            }}));
+            try {
+                JSONObject readPayload = new JSONObject();
+                readPayload.put("senderId", activeFriend._id);
+                mSocket.emit("message:read", readPayload);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
         }
 
         // Fetch Messages
@@ -341,9 +347,13 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.On
                     rvMessages.scrollToPosition(messageList.size() - 1);
 
                     // Send read status
-                    mSocket.emit("message:read", new Gson().toJson(new HashMap<String, String>() {{
-                        put("senderId", activeFriend._id);
-                    }}));
+                    try {
+                        JSONObject readPayload = new JSONObject();
+                        readPayload.put("senderId", activeFriend._id);
+                        mSocket.emit("message:read", readPayload);
+                    } catch (JSONException readEx) {
+                        readEx.printStackTrace();
+                    }
                 }
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -508,45 +518,50 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.On
 
     private void deleteMessage(String messageId, String target) {
         String authHeader = "Bearer " + pref.getToken();
-        String route = "everyone".equals(target) ? "for-everyone" : "for-me";
-        
-        ApiClient.getService().getConversation(authHeader, activeFriend._id).enqueue(new Callback<ApiResponse<Map<String, List<Message>>>>() {
+
+        Callback<ApiResponse<Object>> callback = new Callback<ApiResponse<Object>>() {
             @Override
-            public void onResponse(Call<ApiResponse<Map<String, List<Message>>>> call, Response<ApiResponse<Map<String, List<Message>>>> response) {
-                // Delete API call directly
-                if ("everyone".equals(target)) {
-                    // Make Retrofit DELETE call
-                    // We'll perform raw Retrofit call inside generic callback for deletions
-                    performDeleteCall(messageId, "for-everyone");
+            public void onResponse(Call<ApiResponse<Object>> call, Response<ApiResponse<Object>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().success) {
+                    if ("everyone".equals(target)) {
+                        // Update local state — the socket listener will also handle this for the receiver
+                        for (int i = 0; i < messageList.size(); i++) {
+                            if (messageList.get(i)._id.equals(messageId)) {
+                                messageList.get(i).isDeletedForEveryone = true;
+                                messageList.get(i).text = "This message was deleted.";
+                                messageList.get(i).messageType = "text";
+                                messageList.get(i).fileUrl = "";
+                                messageAdapter.notifyItemChanged(i);
+                                break;
+                            }
+                        }
+                    } else {
+                        // Remove from local list
+                        for (int i = 0; i < messageList.size(); i++) {
+                            if (messageList.get(i)._id.equals(messageId)) {
+                                messageList.remove(i);
+                                messageAdapter.notifyItemRemoved(i);
+                                break;
+                            }
+                        }
+                    }
+                    Toast.makeText(ChatActivity.this, "Message deleted.", Toast.LENGTH_SHORT).show();
                 } else {
-                    performDeleteCall(messageId, "for-me");
+                    Toast.makeText(ChatActivity.this, "Could not delete message.", Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
-            public void onFailure(Call<ApiResponse<Map<String, List<Message>>>> call, Throwable t) {}
-        });
-    }
+            public void onFailure(Call<ApiResponse<Object>> call, Throwable t) {
+                Toast.makeText(ChatActivity.this, "Network error deleting message.", Toast.LENGTH_SHORT).show();
+            }
+        };
 
-    private void performDeleteCall(String messageId, String route) {
-        String authHeader = "Bearer " + pref.getToken();
-        // Since we have Retrofit set up, we'll perform deletion call. We can write delete endpoints if needed or call them
-        // Let's use simple OkHttp call or enqueue using Retrofit
-        if ("for-everyone".equals(route)) {
-            // Delete for everyone
-            ApiClient.getService().rejectFriendRequest(authHeader, messageId).enqueue(new Callback<ApiResponse<Object>>() {
-                // Wait! We can add delete message endpoints to ApiService interface. Let's do that!
-                // Yes, we will define deletion endpoints inside ApiService!
-            });
+        if ("everyone".equals(target)) {
+            ApiClient.getService().deleteMessageForEveryone(authHeader, messageId).enqueue(callback);
+        } else {
+            ApiClient.getService().deleteMessageForMe(authHeader, messageId).enqueue(callback);
         }
-        // Let's perform a fresh API fetch after delete triggers
-        // Actually, we can add proper delete endpoints to ApiService. Let's view ApiService.java.
-        // It has `acceptFriendRequest` and `rejectFriendRequest`. Let's modify ApiService.java to add:
-        // @DELETE("api/messages/{id}/for-me")
-        // Call<ApiResponse<Object>> deleteMessageForMe(...);
-        // @DELETE("api/messages/{id}/for-everyone")
-        // Call<ApiResponse<Object>> deleteMessageForEveryone(...);
-        // This is much cleaner and proper! Let's do that.
     }
 
     @Override

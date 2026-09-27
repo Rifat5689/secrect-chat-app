@@ -190,7 +190,7 @@ const rejectFriendRequest = async (req, res) => {
     });
 
     await User.findByIdAndUpdate(requesterId, {
-      $pull: { "friendRequests.sent": { to: requesterId } }, // Clean up requester's sent requests
+      $pull: { "friendRequests.sent": { to: currentUser._id } }, // Clean up requester's sent requests
     });
 
     return sendSuccess(res, 200, "Friend request rejected.");

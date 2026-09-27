@@ -24,9 +24,8 @@ const getConversation = async (req, res) => {
         { sender: currentUserId, receiver: friendId },
         { sender: friendId, receiver: currentUserId },
       ],
-      // Exclude messages deleted by the current user
+      // Exclude messages deleted by the current user only
       deletedBy: { $nin: [currentUserId] },
-      isDeletedForEveryone: false,
     })
       .sort({ createdAt: 1 }) // Oldest first
       .populate("sender", "name mobilenumber avatar")

@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import axios from 'axios'
-import { MessageSquareCode, Lock, Phone, User } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
@@ -52,76 +51,136 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-radial from-indigo-950 via-slate-900 to-black p-4 text-slate-100">
-      {/* Background Decorative Blobs */}
-      <div className="absolute w-[300px] h-[300px] bg-indigo-600/15 blur-[80px] rounded-full top-20 left-20 animate-pulse"></div>
-      <div className="absolute w-[350px] h-[350px] bg-purple-600/10 blur-[90px] rounded-full bottom-20 right-20 animate-pulse delay-700"></div>
+    <div style={{
+      minHeight: '100vh', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      backgroundColor: '#f0f2f5', padding: 16,
+    }}>
+      {/* Top teal bar */}
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, height: 222,
+        backgroundColor: '#00A884', zIndex: 0,
+      }} />
 
-      <div className="w-full max-w-md bg-slate-900/60 backdrop-blur-xl border border-slate-800 p-8 rounded-2xl shadow-2xl relative z-10">
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center mb-3 shadow-lg shadow-indigo-600/30">
-            <MessageSquareCode className="w-8 h-8 text-white" />
+      {/* Card */}
+      <div style={{
+        width: '100%', maxWidth: 460, backgroundColor: '#fff',
+        borderRadius: 4, boxShadow: '0 17px 50px 0 rgba(0,0,0,.19), 0 12px 15px 0 rgba(0,0,0,.24)',
+        padding: '48px 40px', position: 'relative', zIndex: 1,
+      }}>
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{
+            width: 72, height: 72, borderRadius: '50%', margin: '0 auto 16px',
+            backgroundColor: '#00A884', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+            </svg>
           </div>
-          <h2 className="text-3xl font-bold font-display tracking-tight text-white">Create Account</h2>
-          <p className="text-sm text-slate-400 mt-1">Get started with secure messaging</p>
+          <h2 style={{ fontSize: 20, fontWeight: 400, color: '#41525d', marginBottom: 4 }}>
+            Create Your Account
+          </h2>
+          <p style={{ fontSize: 14, color: '#8696a0' }}>
+            Join SecretChat to start messaging
+          </p>
         </div>
 
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-lg text-center mb-6">
+          <div style={{
+            backgroundColor: '#FFF0F0', color: '#ea0038', fontSize: 14,
+            padding: '10px 16px', borderRadius: 4, marginBottom: 20, textAlign: 'center',
+            border: '1px solid #ffcdd2',
+          }}>
             {error}
           </div>
         )}
 
-        <form onSubmit={handleRegister} className="space-y-5">
-          <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+        <form onSubmit={handleRegister}>
+          {/* Full Name */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', fontSize: 14, color: '#008069', fontWeight: 500, marginBottom: 8 }}>
+              Full Name
+            </label>
             <input
               type="text"
-              placeholder="Full Name"
+              placeholder="Enter your name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-slate-950/40 border border-slate-800 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm text-white focus:ring-2 focus:ring-indigo-500/15"
+              style={{
+                width: '100%', padding: '10px 0', border: 'none',
+                borderBottom: '2px solid #ccc', fontSize: 16,
+                color: '#111b21', outline: 'none', backgroundColor: 'transparent',
+                transition: 'border-color 0.2s',
+              }}
+              onFocus={(e) => e.target.style.borderBottomColor = '#00A884'}
+              onBlur={(e) => e.target.style.borderBottomColor = name ? '#00A884' : '#ccc'}
             />
           </div>
 
-          <div className="relative">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          {/* Mobile Number */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', fontSize: 14, color: '#008069', fontWeight: 500, marginBottom: 8 }}>
+              Mobile Number
+            </label>
             <input
               type="text"
-              placeholder="Mobile Number"
+              placeholder="e.g. 01712345678"
               value={mobilenumber}
               onChange={(e) => setMobilenumber(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-slate-950/40 border border-slate-800 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm text-white focus:ring-2 focus:ring-indigo-500/15"
+              style={{
+                width: '100%', padding: '10px 0', border: 'none',
+                borderBottom: '2px solid #ccc', fontSize: 16,
+                color: '#111b21', outline: 'none', backgroundColor: 'transparent',
+                transition: 'border-color 0.2s',
+              }}
+              onFocus={(e) => e.target.style.borderBottomColor = '#00A884'}
+              onBlur={(e) => e.target.style.borderBottomColor = mobilenumber ? '#00A884' : '#ccc'}
             />
           </div>
 
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          {/* Password */}
+          <div style={{ marginBottom: 28 }}>
+            <label style={{ display: 'block', fontSize: 14, color: '#008069', fontWeight: 500, marginBottom: 8 }}>
+              Password
+            </label>
             <input
               type="password"
-              placeholder="Password (Min. 6 chars)"
+              placeholder="Min. 6 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-slate-950/40 border border-slate-800 focus:border-indigo-500 rounded-xl outline-none transition-all text-sm text-white focus:ring-2 focus:ring-indigo-500/15"
+              style={{
+                width: '100%', padding: '10px 0', border: 'none',
+                borderBottom: '2px solid #ccc', fontSize: 16,
+                color: '#111b21', outline: 'none', backgroundColor: 'transparent',
+                transition: 'border-color 0.2s',
+              }}
+              onFocus={(e) => e.target.style.borderBottomColor = '#00A884'}
+              onBlur={(e) => e.target.style.borderBottomColor = password ? '#00A884' : '#ccc'}
             />
           </div>
 
+          {/* Register Button */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-indigo-600/20 active:scale-[0.98] disabled:opacity-50 text-sm flex items-center justify-center gap-2"
+            style={{
+              width: '100%', padding: '14px 24px', borderRadius: 4, border: 'none',
+              backgroundColor: '#00A884', color: '#fff', fontSize: 16,
+              fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.7 : 1, transition: 'background-color 0.2s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+            onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#008069' }}
+            onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#00A884' }}
           >
-            {loading ? (
-              <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-            ) : (
-              'Create Account'
-            )}
+            {loading ? <span className="wa-spinner" /> : 'CREATE ACCOUNT'}
           </button>
         </form>
 
-        <p className="text-center text-sm text-slate-400 mt-6">
+        <p style={{ textAlign: 'center', fontSize: 14, color: '#667781', marginTop: 24 }}>
           Already have an account?{' '}
-          <Link to="/login" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
+          <Link to="/login" style={{ color: '#00A884', fontWeight: 500, textDecoration: 'none' }}>
             Log In
           </Link>
         </p>
