@@ -57,6 +57,14 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
+    // ── Blocked Users ─────────────────────────────────────
+    blockedUsers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
     friendRequests: {
       // Requests this user has RECEIVED
       received: [

@@ -28,6 +28,9 @@ router.post("/", protect, upload.single("file"), async (req, res) => {
     } else if (req.file.mimetype.startsWith("video/")) {
       resourceType = "video";
       fileType = "video";
+    } else if (req.file.mimetype.startsWith("audio/")) {
+      resourceType = "auto";
+      fileType = "audio";
     }
 
     // Upload using stream

@@ -7,7 +7,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class ApiClient {
     // 10.0.2.2 points to host localhost in Android Emulator
-    private static final String BASE_URL = "http://10.0.2.2:5000/";
+    private static final String BASE_URL = "https://secrect-chat-app.onrender.com/";
     private static Retrofit retrofit = null;
 
     public static ApiService getService() {

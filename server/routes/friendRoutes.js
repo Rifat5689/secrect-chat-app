@@ -7,6 +7,10 @@ import {
   rejectFriendRequest,
   getFriends,
   getPendingRequests,
+  blockUser,
+  unblockUser,
+  getBlockedUsers,
+  updateProfile,
 } from "../controllers/friendController.js";
 
 import { protect } from "../middleware/auth.js";
@@ -19,5 +23,13 @@ router.put("/accept/:requesterId", acceptFriendRequest);
 router.delete("/reject/:requesterId", rejectFriendRequest);
 router.get("/", getFriends);
 router.get("/requests/pending", getPendingRequests);
+
+// Block / Unblock
+router.put("/block/:userId", blockUser);
+router.put("/unblock/:userId", unblockUser);
+router.get("/blocked", getBlockedUsers);
+
+// Profile
+router.put("/profile", updateProfile);
 
 export default router;

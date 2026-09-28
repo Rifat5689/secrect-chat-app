@@ -232,10 +232,106 @@ const getPendingRequests = async (req, res) => {
   }
 };
 
+// ── Block a User ──────────────────────────────────────────
+const blockUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const currentUser = req.user;
+
+    if (userId === currentUser._id.toString()) {
+      return sendError(res, 400, "You cannot block yourself.");
+    }
+
+    const alreadyBlocked = currentUser.blockedUsers?.includes(userId);
+    if (alreadyBlocked) {
+      return sendError(res, 400, "User is already blocked.");
+    }
+
+    await User.findByIdAndUpdate(currentUser._id, {
+      $addToSet: { blockedUsers: userId },
+    });
+
+    return sendSuccess(res, 200, "User blocked successfully.");
+  } catch (error) {
+    console.error("Block user error:", error.message);
+    return sendError(res, 500, "Could not block user.");
+  }
+};
+
+// ── Unblock a User ────────────────────────────────────────
+const unblockUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const currentUser = req.user;
+
+    await User.findByIdAndUpdate(currentUser._id, {
+      $pull: { blockedUsers: userId },
+    });
+
+    return sendSuccess(res, 200, "User unblocked successfully.");
+  } catch (error) {
+    console.error("Unblock user error:", error.message);
+    return sendError(res, 500, "Could not unblock user.");
+  }
+};
+
+// ── Get Blocked Users ─────────────────────────────────────
+const getBlockedUsers = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .populate("blockedUsers", "name mobilenumber avatar")
+      .select("blockedUsers");
+
+    return sendSuccess(res, 200, "Blocked users fetched.", {
+      blockedUsers: user.blockedUsers || [],
+    });
+  } catch (error) {
+    console.error("Get blocked users error:", error.message);
+    return sendError(res, 500, "Could not fetch blocked users.");
+  }
+};
+
+// ── Update Profile (name / avatar) ────────────────────────
+const updateProfile = async (req, res) => {
+  try {
+    const { name, avatar } = req.body;
+    const updateData = {};
+
+    if (name && name.trim().length >= 2 && name.trim().length <= 50) {
+      updateData.name = name.trim();
+    }
+
+    if (avatar !== undefined) {
+      updateData.avatar = avatar;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return sendError(res, 400, "No valid fields to update.");
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      updateData,
+      { new: true }
+    ).select("name mobilenumber avatar");
+
+    return sendSuccess(res, 200, "Profile updated successfully.", {
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("Update profile error:", error.message);
+    return sendError(res, 500, "Could not update profile.");
+  }
+};
+
 export {
   sendFriendRequest,
   acceptFriendRequest,
   rejectFriendRequest,
   getFriends,
   getPendingRequests,
+  blockUser,
+  unblockUser,
+  getBlockedUsers,
+  updateProfile,
 };
