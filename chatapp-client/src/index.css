@@ -171,6 +171,8 @@
 /* ── Global Styles ────────────────────────────────────────── */
 html, body, #root {
   height: 100%;
+  /* dvh = dynamic viewport height — accounts for mobile browser chrome */
+  height: 100dvh;
   width: 100%;
   overflow: hidden;
 }
@@ -203,16 +205,30 @@ body {
 
 /* ── Mobile Responsiveness ────────────────────────────────── */
 @media (max-width: 768px) {
+  body, html, #root {
+    height: 100dvh !important;
+  }
+
   .sc-sidebar {
     width: 100% !important;
     min-width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    inset: 0 !important;
+    position: absolute !important;
   }
+
+  /* Chat panel overlays sidebar on mobile */
   .sc-chat-panel {
     width: 100% !important;
     position: absolute !important;
     inset: 0 !important;
     z-index: 50 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
   }
+
   .sc-hide-mobile {
     display: none !important;
   }

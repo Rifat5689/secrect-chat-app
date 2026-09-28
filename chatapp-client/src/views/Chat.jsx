@@ -57,6 +57,11 @@ const Icons = {
       <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
     </svg>
   ),
+  CornerUpLeft: ({ size = 20, ...p }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>
+    </svg>
+  ),
   Check: ({ size = 20, ...p }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
       <polyline points="20 6 9 17 4 12"/>
@@ -139,6 +144,13 @@ const Icons = {
   ),
 }
 
+// ── Photo/Video gallery icon ──
+const PhotoGalleryIcon = ({ size = 20, ...p }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+  </svg>
+)
+
 // ── Constants ──────────────────────────────────────────────
 const THEMES = [
   { id: 'sage', name: 'Sage', desc: 'Calm green', color: '#5B8A72' },
@@ -193,6 +205,7 @@ export default function Chat() {
   const [reactionBarMsgId, setReactionBarMsgId] = useState(null)
   const [emojiPickerMsgId, setEmojiPickerMsgId] = useState(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [drawerTab, setDrawerTab] = useState('info') // 'info' | 'media'
   const [chatMenuOpen, setChatMenuOpen] = useState(false)
 
   // Profile
@@ -222,6 +235,10 @@ export default function Chat() {
   const [friendTypingId, setFriendTypingId] = useState(null)
   const [amTyping, setAmTyping] = useState(false)
   const [uploadingFiles, setUploadingFiles] = useState([])
+
+  // Reply & Viewer
+  const [replyingTo, setReplyingTo] = useState(null)
+  const [fullscreenImage, setFullscreenImage] = useState(null)
 
   // Audio Recording
   const [isRecording, setIsRecording] = useState(false)
@@ -253,12 +270,13 @@ export default function Chat() {
           const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } }
           const res = await axios.post(`${API_URL}/api/upload`, formData, config)
           if (res.data.success) {
-            socketRef.current?.emit('message:send', { receiverId: activeFriend._id, text: '', fileUrl: res.data.data.url, messageType: 'audio' }, (socketRes) => {
+            socketRef.current?.emit('message:send', { receiverId: activeFriend._id, text: '', fileUrl: res.data.data.url, messageType: 'audio', replyTo: replyingTo?._id || null }, (socketRes) => {
               if (socketRes.success) {
                 setMessages(prev => [...prev, socketRes.message])
                 setLastMessages(prev => ({ ...prev, [activeFriend._id]: socketRes.message }))
               }
             })
+            setReplyingTo(null)
           }
         } catch(e) { showToast('Failed to send voice message.') }
       }
@@ -395,9 +413,36 @@ export default function Chat() {
     return () => socket.disconnect()
   }, [token, activeFriend?._id])
 
+  // Scroll to bottom when messages update OR when a new chat is opened
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, uploadingFiles])
+
+  // Scroll to bottom immediately when switching chats (no animation)
+  useEffect(() => {
+    if (activeFriend) {
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'instant' }), 50)
+    }
+  }, [activeFriend?._id])
+
+  // Handle browser back button on mobile — push state when opening a chat
+  useEffect(() => {
+    if (activeFriend) {
+      window.history.pushState({ chatOpen: true, friendId: activeFriend._id }, '')
+    }
+  }, [activeFriend?._id])
+
+  useEffect(() => {
+    const handlePopState = (e) => {
+      // If we were in a chat, go back to list instead of leaving the app
+      if (activeFriend) {
+        setActiveFriend(null)
+        setMessages([])
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [activeFriend])
 
   // Close menus on outside click
   useEffect(() => {
@@ -473,7 +518,7 @@ export default function Chat() {
 
   // ── Actions ─────────────────────────────────────────────
   const selectFriend = async (friend) => {
-    setActiveFriend(friend); setMessages([])
+    setActiveFriend(friend); setMessages([]); setDrawerTab('info')
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } }
       const res = await axios.get(`${API_URL}/api/messages/conversation/${friend._id}`, config)
@@ -483,6 +528,8 @@ export default function Chat() {
         if (res.data.data.messages.length > 0) {
           setLastMessages(prev => ({ ...prev, [friend._id]: res.data.data.messages[res.data.data.messages.length - 1] }))
         }
+        // Scroll to bottom after messages load
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'instant' }), 80)
       }
     } catch (err) { console.error('Error fetching conversation:', err) }
   }
@@ -512,13 +559,14 @@ export default function Chat() {
     const textToSend = isLike ? '👍' : inputText.trim()
     if (!textToSend || !activeFriend) return
     if (isBlocked(activeFriend._id)) { showToast('You have blocked this user.'); return }
-    socketRef.current?.emit('message:send', { receiverId: activeFriend._id, text: textToSend, messageType: 'text' }, (res) => {
+    socketRef.current?.emit('message:send', { receiverId: activeFriend._id, text: textToSend, messageType: 'text', replyTo: replyingTo?._id || null }, (res) => {
       if (res.success) {
         setMessages(prev => [...prev, res.message])
         setLastMessages(prev => ({ ...prev, [activeFriend._id]: res.message }))
       }
     })
     if (!isLike) { setInputText(''); stopTyping() }
+    setReplyingTo(null)
   }
 
   const handleInputChange = (e) => {
@@ -544,12 +592,13 @@ export default function Chat() {
       }
       const res = await axios.post(`${API_URL}/api/upload`, formData, config)
       if (res.data.success) {
-        socketRef.current?.emit('message:send', { receiverId: activeFriend._id, text: '', fileUrl: res.data.data.url, messageType: res.data.data.fileType }, (socketRes) => {
+        socketRef.current?.emit('message:send', { receiverId: activeFriend._id, text: '', fileUrl: res.data.data.url, messageType: res.data.data.fileType, replyTo: replyingTo?._id || null }, (socketRes) => {
           if (socketRes.success) {
             setMessages(prev => [...prev, socketRes.message])
             setLastMessages(prev => ({ ...prev, [activeFriend._id]: socketRes.message }))
           }
         })
+        setReplyingTo(null)
       }
     } catch(_) { showToast('Upload failed.') }
     finally { setUploadingFiles(prev => prev.filter(f => f.id !== tempId)); URL.revokeObjectURL(previewUrl) }
@@ -641,7 +690,7 @@ export default function Chat() {
   // RENDER
   // ═══════════════════════════════════════════════════════════
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', backgroundColor: 'var(--bg-app)', transition: 'background-color var(--transition-smooth)' }}>
+    <div style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden', backgroundColor: 'var(--bg-app)', transition: 'background-color var(--transition-smooth)' }}>
       {/* Toast */}
       {toastMessage && (
         <div className="sc-toast" style={{ position:'fixed', top:20, left:'50%', transform:'translateX(-50%)', backgroundColor:'var(--text-primary)', color:'#fff', fontSize:13, padding:'10px 24px', borderRadius:'var(--radius-md)', zIndex:9999, boxShadow:'var(--shadow-lg)', fontWeight:500 }}>
@@ -832,8 +881,8 @@ export default function Chat() {
         {/* ═══ CHAT PANEL ═══ */}
         {activeFriend ? (
           <main className="sc-chat-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', backgroundColor: 'var(--bg-chat)', transition: 'background-color var(--transition-smooth)' }}>
-            {/* Chat Header */}
-            <div style={{ padding: '8px 16px', backgroundColor: 'var(--bg-header)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 56, flexShrink: 0, transition: 'background-color var(--transition-smooth)' }}>
+            {/* Chat Header — sticky so it stays visible while scrolling on mobile */}
+            <div style={{ padding: '8px 16px', backgroundColor: 'var(--bg-header)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 56, flexShrink: 0, transition: 'background-color var(--transition-smooth)', position: 'sticky', top: 0, zIndex: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <button onClick={() => setActiveFriend(null)} className="sc-show-mobile-only" style={{ padding: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-header)' }}>
                   <Icons.ArrowLeft size={22} />
@@ -862,7 +911,11 @@ export default function Chat() {
                       style={{ width: '100%', textAlign: 'left', padding: '12px 16px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', fontSize: 14, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'inherit' }}>
                       <Icons.Image size={16} style={{ color: 'var(--text-secondary)' }} /> Select Wallpaper
                     </button>
-                    <button onClick={() => { setIsDrawerOpen(true); setChatMenuOpen(false) }} className="sc-chat-item"
+                    <button onClick={() => { setIsDrawerOpen(true); setDrawerTab('media'); setChatMenuOpen(false) }} className="sc-chat-item"
+                      style={{ width: '100%', textAlign: 'left', padding: '12px 16px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', fontSize: 14, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'inherit', borderTop: '1px solid var(--border-color)' }}>
+                      <PhotoGalleryIcon size={16} style={{ color: 'var(--text-secondary)' }} /> Shared Media
+                    </button>
+                    <button onClick={() => { setIsDrawerOpen(true); setDrawerTab('info'); setChatMenuOpen(false) }} className="sc-chat-item"
                       style={{ width: '100%', textAlign: 'left', padding: '12px 16px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', fontSize: 14, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'inherit', borderTop: '1px solid var(--border-color)' }}>
                       <Icons.User size={16} style={{ color: 'var(--text-secondary)' }} /> Contact Info
                     </button>
@@ -904,11 +957,16 @@ export default function Chat() {
                 let lastH = null
                 return (
                   <>
-                    {messages.map(msg => {
+                    {messages.map((msg, index) => {
                       const dh = getDateHeader(msg.createdAt), show = dh !== lastH; lastH = dh
                       const isMe = msg.sender._id === myData.id || msg.sender === myData.id
                       const hasMedia = (msg.messageType==='image'||msg.messageType==='video') && !msg.isDeletedForEveryone
                       const hasText = msg.text && !msg.isDeletedForEveryone
+                      
+                      const emojiRegex = /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+$/u;
+                      const isOnlyEmoji = hasText && emojiRegex.test(msg.text) && msg.text.trim().length > 0;
+                      const emojiCount = isOnlyEmoji ? [...msg.text.replace(/\s/g, '')].length : 0;
+                      const isBigEmoji = isOnlyEmoji && !hasMedia && msg.messageType === 'text' && emojiCount > 0 && emojiCount <= 3;
 
                       return (
                         <React.Fragment key={msg._id}>
@@ -932,27 +990,46 @@ export default function Chat() {
                             )}
 
                             {/* Bubble */}
-                            <div className="sc-msg-bubble"
-                              onPointerDown={() => !msg.isDeletedForEveryone && handleMsgPointerDown(msg._id)}
-                              onPointerUp={handleMsgPointerUp}
-                              onPointerLeave={handleMsgPointerUp}
-                              onContextMenu={(e) => { e.preventDefault(); if (!msg.isDeletedForEveryone) setReactionBarMsgId(msg._id) }}
-                              style={{
-                                maxWidth: '65%', borderRadius: 'var(--radius-md)',
-                                borderTopRightRadius: isMe ? 2 : 'var(--radius-md)', borderTopLeftRadius: isMe ? 'var(--radius-md)' : 2,
-                                padding: hasMedia || msg.messageType==='audio' ? 3 : '7px 9px 6px 10px',
-                                position: 'relative', boxShadow: 'var(--shadow-sm)',
-                                backgroundColor: isMe ? 'var(--bg-msg-me)' : 'var(--bg-msg-other)',
-                                transition: 'background-color var(--transition-smooth)',
-                                userSelect: 'text', WebkitUserSelect: 'text',
-                              }}>
+                              <div className="sc-msg-bubble"
+                                onPointerDown={() => !msg.isDeletedForEveryone && handleMsgPointerDown(msg._id)}
+                                onPointerUp={handleMsgPointerUp}
+                                onPointerLeave={handleMsgPointerUp}
+                                onContextMenu={(e) => { e.preventDefault(); if (!msg.isDeletedForEveryone) setReactionBarMsgId(msg._id) }}
+                                style={{
+                                  maxWidth: '65%', borderRadius: 'var(--radius-md)',
+                                  borderTopRightRadius: isMe ? 2 : 'var(--radius-md)', borderTopLeftRadius: isMe ? 'var(--radius-md)' : 2,
+                                  padding: hasMedia || msg.messageType==='audio' ? 3 : (isBigEmoji ? 0 : '6px 7px 8px 9px'),
+                                  position: 'relative', boxShadow: isBigEmoji ? 'none' : 'var(--shadow-sm)',
+                                  backgroundColor: isBigEmoji ? 'transparent' : (isMe ? 'var(--bg-msg-me)' : 'var(--bg-msg-other)'),
+                                  transition: 'background-color var(--transition-smooth)',
+                                  userSelect: 'text', WebkitUserSelect: 'text',
+                                }}>
                               {msg.isDeletedForEveryone ? (
                                 <p style={{ fontSize: 13.5, fontStyle: 'italic', color: 'var(--text-tertiary)', margin: 0, padding: '4px 6px' }}>This message was deleted</p>
                               ) : (
                                 <>
+                                  {/* Replied Message Preview inside Bubble */}
+                                  {msg.replyTo && (
+                                    <div style={{ backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 'var(--radius-sm)', padding: '6px 8px', marginBottom: hasMedia ? 4 : 6, borderLeft: '4px solid var(--primary)', fontSize: 13, color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                      <span style={{ fontWeight: 600, color: 'var(--primary)' }}>{msg.replyTo.sender?.name || 'Someone'}</span>
+                                      {msg.replyTo.isDeletedForEveryone ? (
+                                        <span style={{ fontStyle: 'italic' }}>Deleted message</span>
+                                      ) : msg.replyTo.messageType === 'text' ? (
+                                        <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{msg.replyTo.text}</span>
+                                      ) : (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                          {msg.replyTo.messageType === 'image' && <Icons.Image size={14} />}
+                                          {msg.replyTo.messageType === 'video' && <Icons.Video size={14} />}
+                                          {msg.replyTo.messageType === 'audio' && <Icons.Mic size={14} />}
+                                          {msg.replyTo.messageType.charAt(0).toUpperCase() + msg.replyTo.messageType.slice(1)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+
                                   {msg.messageType==='image' && (
                                     <div style={{ borderRadius: 'var(--radius-sm)', overflow: 'hidden', lineHeight: 0 }}>
-                                      <img src={msg.fileUrl} alt="Photo" style={{ maxWidth: 330, width: '100%', maxHeight: 400, objectFit: 'cover', display: 'block' }} />
+                                      <img onClick={() => setFullscreenImage(msg.fileUrl)} src={msg.fileUrl} alt="Photo" style={{ maxWidth: 330, width: '100%', maxHeight: 400, objectFit: 'cover', display: 'block', cursor: 'pointer' }} />
                                     </div>
                                   )}
                                   {msg.messageType==='video' && (
@@ -965,21 +1042,31 @@ export default function Chat() {
                                       <audio src={msg.fileUrl} controls style={{ width: '100%', height: 40 }} />
                                     </div>
                                   )}
-                                  {msg.text && <p style={{ fontSize: 14, lineHeight: 1.5, margin: 0, color: 'var(--text-primary)', whiteSpace: 'pre-wrap', padding: hasMedia ? '5px 6px 0 6px' : 0, wordBreak: 'break-word' }}>{msg.text}</p>}
+                                  {msg.text && (
+                                    <p style={{ fontSize: isBigEmoji ? (emojiCount === 1 ? 48 : emojiCount === 2 ? 40 : 32) : 15, lineHeight: isBigEmoji ? 1.2 : 1.4, margin: 0, color: 'var(--text-primary)', whiteSpace: 'pre-wrap', padding: hasMedia ? '5px 6px 0 6px' : (isBigEmoji ? '0 0 14px 0' : 0), wordBreak: 'break-word' }}>
+                                      {msg.text}
+                                      {!isBigEmoji && <span style={{ display: 'inline-block', width: 50, height: 1 }}></span>}
+                                    </p>
+                                  )}
                                 </>
                               )}
 
                               {/* Time + ticks */}
                               <div style={{
-                                display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3, marginTop: 2,
-                                ...(hasMedia && !hasText ? { position: 'absolute', bottom: 6, right: 8, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 'var(--radius-sm)', padding: '2px 6px' } : {}),
+                                display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3, marginTop: hasMedia || msg.messageType==='audio' ? 2 : 0,
+                                position: hasMedia || isBigEmoji || msg.messageType==='text' ? 'absolute' : 'static',
+                                bottom: hasMedia && !hasText ? 6 : (isBigEmoji ? 0 : 4),
+                                right: hasMedia && !hasText ? 8 : (isBigEmoji ? 0 : 8),
+                                backgroundColor: hasMedia && !hasText ? 'rgba(0,0,0,0.4)' : 'transparent',
+                                borderRadius: 'var(--radius-sm)',
+                                padding: hasMedia && !hasText ? '2px 6px' : 0,
                               }}>
-                                <span style={{ fontSize: 10.5, color: hasMedia && !hasText ? '#fff' : 'var(--text-tertiary)', fontWeight: 400 }}>{formatTime(msg.createdAt)}</span>
+                                <span style={{ fontSize: 10.5, color: hasMedia && !hasText ? '#fff' : 'var(--text-tertiary)', fontWeight: 400, textShadow: isBigEmoji ? '0 1px 1px rgba(255,255,255,0.8)' : 'none' }}>{formatTime(msg.createdAt)}</span>
                                 {isMe && !msg.isDeletedForEveryone && (
                                   <span style={{ display: 'flex', alignItems: 'center' }}>
-                                    {msg.status==='sent' && <Icons.Check size={15} style={{ color: hasMedia&&!hasText ? '#fff' : 'var(--tick-default)' }} />}
-                                    {msg.status==='delivered' && <Icons.CheckCheck size={15} style={{ color: hasMedia&&!hasText ? '#fff' : 'var(--tick-default)' }} />}
-                                    {msg.status==='read' && <Icons.CheckCheck size={15} style={{ color: 'var(--tick-read)' }} />}
+                                    {msg.status==='sent' && <Icons.Check size={14} style={{ color: hasMedia&&!hasText ? '#fff' : 'var(--tick-default)' }} />}
+                                    {msg.status==='delivered' && <Icons.CheckCheck size={14} style={{ color: hasMedia&&!hasText ? '#fff' : 'var(--tick-default)' }} />}
+                                    {msg.status==='read' && <Icons.CheckCheck size={14} style={{ color: 'var(--tick-read)' }} />}
                                   </span>
                                 )}
                               </div>
@@ -1009,7 +1096,11 @@ export default function Chat() {
 
                               {/* Delete menu */}
                               {activeMenuMsgId === msg._id && (
-                                <div className="sc-dropdown" onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 28, right: 4, backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)', zIndex: 50, overflow: 'hidden', minWidth: 180 }}>
+                                <div className="sc-dropdown" onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', ...(index >= messages.length - 2 ? { bottom: 28 } : { top: 28 }), right: 4, backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)', zIndex: 50, overflow: 'hidden', minWidth: 180 }}>
+                                  <button onClick={() => { setReplyingTo(msg); setActiveMenuMsgId(null); }} className="sc-chat-item"
+                                    style={{ width: '100%', textAlign: 'left', padding: '10px 16px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', fontSize: 13, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'inherit', borderBottom: '1px solid var(--border-color)' }}>
+                                    <Icons.CornerUpLeft size={14} /> Reply
+                                  </button>
                                   <button onClick={() => handleDeleteMessage(msg._id, 'me')} className="sc-chat-item"
                                     style={{ width: '100%', textAlign: 'left', padding: '10px 16px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', fontSize: 13, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }}>
                                     <Icons.Trash size={14} /> Delete for me
@@ -1073,79 +1164,110 @@ export default function Chat() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Bar */}
-            <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-input)', display: 'flex', alignItems: 'flex-end', gap: 8, flexShrink: 0, transition: 'background-color var(--transition-smooth)' }}>
+            {/* Input Area Container */}
+            <div style={{ display: 'flex', flexDirection: 'column', width: '100%', position: 'relative', zIndex: 20 }}>
+              
+              {/* Reply Preview */}
+              {replyingTo && (
+                <div style={{ margin: '0 10px 4px 10px', padding: '8px 12px', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-md)', borderLeft: '4px solid var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary)' }}>Replying to {replyingTo.sender?.name || 'Someone'}</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {replyingTo.messageType === 'text' ? replyingTo.text : (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          {replyingTo.messageType === 'image' && <Icons.Image size={14} />}
+                          {replyingTo.messageType === 'video' && <Icons.Video size={14} />}
+                          {replyingTo.messageType === 'audio' && <Icons.Mic size={14} />}
+                          {replyingTo.messageType.charAt(0).toUpperCase() + replyingTo.messageType.slice(1)}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <button onClick={() => setReplyingTo(null)} className="sc-btn-icon" style={{ padding: 4 }}><Icons.X size={16} /></button>
+                </div>
+              )}
+
+              {/* Premium Glassmorphic Input Bar */}
+              <div style={{ padding: '8px 10px', paddingBottom: 'max(8px, env(safe-area-inset-bottom, 8px))', backgroundColor: 'transparent', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, width: '100%', boxSizing: 'border-box' }}>
+              
+              {/* Main Pill */}
               {isRecording ? (
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-lg)', padding: '8px 16px', border: '1px solid var(--danger)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'var(--bg-surface)', borderRadius: 24, padding: '8px 14px', border: '1px solid var(--danger)', boxShadow: '0 4px 16px rgba(239, 68, 68, 0.15)', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div className="sc-pulse-dot" style={{ width: 10, height: 10, backgroundColor: 'var(--danger)', borderRadius: '50%' }}></div>
-                    <span style={{ fontSize: 14, color: 'var(--danger)', fontWeight: 600 }}>
+                    <span style={{ fontSize: 14, color: 'var(--danger)', fontWeight: 600, fontFamily: 'monospace' }}>
                       {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
                     </span>
                   </div>
-                  <button onClick={cancelRecording} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 14, fontWeight: 500 }}>Cancel</button>
+                  <button onClick={cancelRecording} onTouchEnd={(e) => { e.preventDefault(); cancelRecording() }} style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: '6px 10px', borderRadius: 16, transition: 'background 0.2s', flexShrink: 0 }}>Cancel</button>
                 </div>
               ) : (
-                <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-lg)', padding: '3px 4px 3px 6px', gap: 2, border: '1px solid var(--border-color)', transition: 'border-color var(--transition-fast)', position: 'relative' }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-surface)', borderRadius: 24, padding: '4px 6px', boxShadow: '0 2px 16px rgba(0,0,0,0.06)', border: '1px solid var(--border-color)', position: 'relative', transition: 'all 0.3s ease', minWidth: 0 }}>
+                  
+                  {/* Emoji Picker Overlay */}
                   {inputEmojiPickerOpen && (
-                    <div className="sc-scale-in" onClick={e=>e.stopPropagation()} style={{ position: 'absolute', bottom: 50, left: 0, backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 12, boxShadow: 'var(--shadow-lg)', zIndex: 100, width: 340, height: 360, display: 'flex', flexDirection: 'column' }}>
-                      <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 8, alignContent: 'start', paddingRight: 4 }}>
-                        {ALL_EMOJIS.map((emoji, i) => (
-                          <button key={`${emoji}-${i}`} onClick={() => { setInputText(prev => prev + emoji); setInputEmojiPickerOpen(false) }}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-sm)', padding: 8, transition: 'transform 0.1s, background 0.1s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.15)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
-                            onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'none' }}>
-                            <img src={getTwemojiUrl(emoji)} alt={emoji} style={{ width: 28, height: 28 }} />
-                          </button>
-                        ))}
+                    <>
+                      <div onClick={() => setInputEmojiPickerOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 90 }}></div>
+                      <div className="sc-scale-in" onClick={e=>e.stopPropagation()} style={{ position: 'absolute', bottom: 56, left: 0, backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.15)', zIndex: 100, width: 300, height: 300, display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 6, alignContent: 'start', paddingRight: 4 }}>
+                          {ALL_EMOJIS.map((emoji, i) => (
+                            <button key={`${emoji}-${i}`} onClick={() => { setInputText(prev => prev + emoji); setInputEmojiPickerOpen(false) }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', borderRadius: 'var(--radius-sm)', padding: 6, transition: 'transform 0.1s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.15)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
+                              onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'none' }}>
+                              <img src={getTwemojiUrl(emoji)} alt={emoji} style={{ width: 24, height: 24 }} />
+                            </button>
+                          ))}
+                        </div>
                       </div>
+                    </>
+                  )}
+                  
+                  <button onClick={(e) => { e.stopPropagation(); setInputEmojiPickerOpen(!inputEmojiPickerOpen) }} style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-secondary)', flexShrink: 0 }}>
+                    <Icons.Smile size={20} />
+                  </button>
+                  
+                  <form onSubmit={(e) => handleSendMessage(e, false)} style={{ flex: 1, display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                    <input type="text" placeholder="Message..." value={inputText} onChange={handleInputChange}
+                      style={{ flex: 1, minWidth: 0, padding: '0 8px', height: 36, border: 'none', outline: 'none', fontSize: 14.5, color: 'var(--text-primary)', backgroundColor: 'transparent', fontFamily: 'inherit' }} />
+                  </form>
+                  
+                  {!inputText.trim() && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 2, paddingRight: 2, flexShrink: 0 }}>
+                      <label style={{ width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                        <Icons.Image size={18} />
+                        <input type="file" accept="image/*" onChange={e => handleUploadFile(e, 'image')} style={{ display: 'none' }} />
+                      </label>
+                      <label style={{ width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                        <Icons.Video size={18} />
+                        <input type="file" accept="video/*" onChange={e => handleUploadFile(e, 'video')} style={{ display: 'none' }} />
+                      </label>
                     </div>
                   )}
-                  <button onClick={(e) => { e.stopPropagation(); setInputEmojiPickerOpen(!inputEmojiPickerOpen) }} className="sc-btn-icon" style={{ flexShrink: 0 }} title="Emoji">
-                    <Icons.Smile size={20} style={{ color: 'var(--text-secondary)' }} />
-                  </button>
-                  <label className="sc-btn-icon" style={{ cursor: 'pointer', flexShrink: 0 }} title="Photo">
-                    <Icons.Image size={20} style={{ color: 'var(--text-secondary)' }} />
-                    <input type="file" accept="image/*" onChange={e => handleUploadFile(e, 'image')} style={{ display: 'none' }} />
-                  </label>
-                  <label className="sc-btn-icon" style={{ cursor: 'pointer', flexShrink: 0 }} title="Video">
-                    <Icons.Video size={20} style={{ color: 'var(--text-secondary)' }} />
-                    <input type="file" accept="video/*" onChange={e => handleUploadFile(e, 'video')} style={{ display: 'none' }} />
-                  </label>
-                  <form onSubmit={(e) => handleSendMessage(e, false)} style={{ flex: 1, display: 'flex' }}>
-                    <input type="text" placeholder="Type a message..." value={inputText} onChange={handleInputChange}
-                      style={{ flex: 1, padding: '9px 10px', border: 'none', outline: 'none', fontSize: 14, color: 'var(--text-primary)', backgroundColor: 'transparent', fontFamily: 'inherit' }} />
-                  </form>
                 </div>
               )}
-              {isRecording ? (
-                <button onClick={stopRecording} style={{ width: 44, height: 44, borderRadius: '50%', border: 'none', backgroundColor: 'var(--danger)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'transform 0.1s' }}
-                  onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.93)'}
-                  onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}>
-                  <Icons.Send size={18} />
-                </button>
-              ) : inputText.trim() ? (
-                <button onClick={(e) => handleSendMessage(e, false)} style={{ width: 44, height: 44, borderRadius: '50%', border: 'none', backgroundColor: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background-color var(--transition-fast), transform 0.1s' }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-dark)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
-                  onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.93)'}
-                  onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}>
-                  <Icons.Send size={18} />
-                </button>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-                  <button onClick={startRecording} style={{ width: 42, height: 42, borderRadius: '50%', border: 'none', backgroundColor: 'transparent', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'color 0.2s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary)'}
-                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}>
-                    <Icons.Mic size={22} />
+              
+              {/* Right Side Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                {isRecording ? (
+                  <button onClick={stopRecording} onTouchEnd={(e) => { e.preventDefault(); stopRecording() }} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', backgroundColor: 'var(--danger)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.1s', boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)', flexShrink: 0 }}>
+                    <Icons.Send size={18} style={{ marginLeft: 2 }} />
                   </button>
-                  <button onClick={(e) => handleSendMessage(e, true)} style={{ width: 42, height: 42, borderRadius: '50%', border: 'none', backgroundColor: 'transparent', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.1s' }}
-                    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.9)'}
-                    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}>
-                    <Icons.ThumbsUp size={28} />
+                ) : inputText.trim() ? (
+                  <button onClick={(e) => handleSendMessage(e, false)} onTouchEnd={(e) => { e.preventDefault(); handleSendMessage(e, false) }} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.1s', boxShadow: '0 2px 8px rgba(91, 138, 114, 0.3)', flexShrink: 0 }}>
+                    <Icons.Send size={18} style={{ marginLeft: 2 }} />
                   </button>
-                </div>
-              )}
+                ) : (
+                  <>
+                    <button onClick={startRecording} onTouchEnd={(e) => { e.preventDefault(); startRecording() }} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', flexShrink: 0 }}>
+                      <Icons.Mic size={20} />
+                    </button>
+                    <button onClick={(e) => handleSendMessage(e, true)} onTouchEnd={(e) => { e.preventDefault(); handleSendMessage(e, true) }} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', flexShrink: 0 }}>
+                      <Icons.ThumbsUp size={20} />
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Contact Drawer */}
@@ -1155,35 +1277,86 @@ export default function Chat() {
                   <button onClick={() => setIsDrawerOpen(false)} className="sc-btn-icon-header"><Icons.X size={18} /></button>
                   <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-header)', margin: 0 }}>Contact Info</h3>
                 </div>
+                {/* Drawer Tabs */}
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-sidebar)' }}>
+                  {[{ key: 'info', label: 'Info' }, { key: 'media', label: 'Media' }].map(t => (
+                    <button key={t.key} onClick={() => setDrawerTab(t.key)}
+                      style={{ flex: 1, padding: '11px 0', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: drawerTab === t.key ? 'var(--primary)' : 'var(--text-secondary)', borderBottom: drawerTab === t.key ? '2px solid var(--primary)' : '2px solid transparent', transition: 'all var(--transition-fast)', fontFamily: 'inherit' }}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
                 <div style={{ flex: 1, overflowY: 'auto' }}>
-                  <div style={{ padding: '28px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderBottom: '8px solid var(--bg-input)' }}>
-                    {renderAvatar(activeFriend.name, activeFriend.avatar, 80, 32)}
-                    <h4 style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-primary)', margin: '12px 0 0' }}>{activeFriend.name}</h4>
-                    <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 4 }}>{activeFriend.mobilenumber}</p>
-                    <p style={{ fontSize: 13, marginTop: 4, color: activeFriend.isOnline ? 'var(--success)' : 'var(--text-secondary)', fontWeight: 500 }}>{activeFriend.isOnline ? 'Online' : 'Offline'}</p>
-                  </div>
-                  <div style={{ padding: 16, borderBottom: '8px solid var(--bg-input)' }}>
-                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, marginBottom: 4 }}>About</p>
-                    <p style={{ fontSize: 14, color: 'var(--text-primary)', margin: 0 }}>Hey there! I am using SecretChat.</p>
-                  </div>
-                  <div style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--border-color)' }}>
-                    <Icons.Lock size={18} style={{ color: 'var(--text-secondary)' }} />
-                    <div>
-                      <p style={{ fontSize: 14, color: 'var(--text-primary)', margin: 0 }}>Encryption</p>
-                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, marginTop: 2 }}>Messages are end-to-end encrypted.</p>
-                    </div>
-                  </div>
-                  <div style={{ padding: 16 }}>
-                    {isBlocked(activeFriend._id) ? (
-                      <button onClick={() => handleUnblock(activeFriend._id)} className="sc-btn" style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--success)', color: 'var(--success)', fontSize: 14, fontWeight: 500 }}>
-                        Unblock {activeFriend.name}
-                      </button>
-                    ) : (
-                      <button onClick={() => handleBlock(activeFriend._id)} className="sc-btn" style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: 14, fontWeight: 500 }}>
-                        Block {activeFriend.name}
-                      </button>
-                    )}
-                  </div>
+                  {drawerTab === 'info' && (
+                    <>
+                      <div style={{ padding: '28px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderBottom: '8px solid var(--bg-input)' }}>
+                        {renderAvatar(activeFriend.name, activeFriend.avatar, 80, 32)}
+                        <h4 style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-primary)', margin: '12px 0 0' }}>{activeFriend.name}</h4>
+                        <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 4 }}>{activeFriend.mobilenumber}</p>
+                        <p style={{ fontSize: 13, marginTop: 4, color: activeFriend.isOnline ? 'var(--success)' : 'var(--text-secondary)', fontWeight: 500 }}>{activeFriend.isOnline ? 'Online' : 'Offline'}</p>
+                      </div>
+                      <div style={{ padding: 16, borderBottom: '8px solid var(--bg-input)' }}>
+                        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, marginBottom: 4 }}>About</p>
+                        <p style={{ fontSize: 14, color: 'var(--text-primary)', margin: 0 }}>Hey there! I am using SecretChat.</p>
+                      </div>
+                      <div style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--border-color)' }}>
+                        <Icons.Lock size={18} style={{ color: 'var(--text-secondary)' }} />
+                        <div>
+                          <p style={{ fontSize: 14, color: 'var(--text-primary)', margin: 0 }}>Encryption</p>
+                          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, marginTop: 2 }}>Messages are end-to-end encrypted.</p>
+                        </div>
+                      </div>
+                      <div style={{ padding: 16 }}>
+                        {isBlocked(activeFriend._id) ? (
+                          <button onClick={() => handleUnblock(activeFriend._id)} className="sc-btn" style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--success)', color: 'var(--success)', fontSize: 14, fontWeight: 500 }}>
+                            Unblock {activeFriend.name}
+                          </button>
+                        ) : (
+                          <button onClick={() => handleBlock(activeFriend._id)} className="sc-btn" style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: 14, fontWeight: 500 }}>
+                            Block {activeFriend.name}
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                  {drawerTab === 'media' && (() => {
+                    const mediaMessages = messages.filter(m => (m.messageType === 'image' || m.messageType === 'video') && !m.isDeletedForEveryone)
+                    const [lightboxUrl, setLightboxUrl] = useState(null)
+                    return (
+                      <div style={{ padding: 16 }}>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
+                          {mediaMessages.length} shared item{mediaMessages.length !== 1 ? 's' : ''}
+                        </p>
+                        {mediaMessages.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                            <PhotoGalleryIcon size={40} style={{ color: 'var(--text-tertiary)', marginBottom: 12 }} />
+                            <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>No photos or videos shared yet.</p>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 3 }}>
+                            {mediaMessages.map((m, i) => (
+                              <div key={m._id} onClick={() => setLightboxUrl(m.fileUrl)}
+                                style={{ aspectRatio: '1', borderRadius: 'var(--radius-sm)', overflow: 'hidden', cursor: 'pointer', position: 'relative', backgroundColor: 'var(--bg-input)' }}>
+                                {m.messageType === 'image' ? (
+                                  <img src={m.fileUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#111' }}>
+                                    <Icons.Video size={24} style={{ color: '#fff', opacity: 0.8 }} />
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {lightboxUrl && (
+                          <div onClick={() => setLightboxUrl(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+                            <button onClick={() => setLightboxUrl(null)} style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icons.X size={18} /></button>
+                            <img src={lightboxUrl} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth: '95vw', maxHeight: '90vh', borderRadius: 'var(--radius-md)', objectFit: 'contain' }} />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
             )}
@@ -1312,6 +1485,16 @@ export default function Chat() {
               ))}
             </div>
           </div>
+        </div>
+      )}
+      
+      {/* Fullscreen Image Modal */}
+      {fullscreenImage && (
+        <div onClick={() => setFullscreenImage(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.95)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)' }}>
+          <button onClick={() => setFullscreenImage(null)} style={{ position: 'absolute', top: 'env(safe-area-inset-top, 20px)', right: 20, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', padding: 8, cursor: 'pointer', color: '#fff', transition: 'background 0.2s' }}>
+            <Icons.X size={24} />
+          </button>
+          <img src={fullscreenImage} alt="Fullscreen" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
         </div>
       )}
     </div>

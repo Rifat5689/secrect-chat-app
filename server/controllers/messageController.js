@@ -29,7 +29,15 @@ const getConversation = async (req, res) => {
     })
       .sort({ createdAt: 1 }) // Oldest first
       .populate("sender", "name mobilenumber avatar")
-      .populate("receiver", "name mobilenumber avatar");
+      .populate("receiver", "name mobilenumber avatar")
+      .populate({
+        path: "replyTo",
+        select: "text messageType fileUrl sender isDeletedForEveryone",
+        populate: {
+          path: "sender",
+          select: "name",
+        },
+      });
 
     // Mark all messages SENT BY the friend as "read"
     await Message.updateMany(

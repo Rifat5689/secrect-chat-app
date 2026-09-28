@@ -65,9 +65,9 @@ const setupSocketHandlers = (io) => {
     }
 
     // ── 4. Send Message Event ──────────────────────────────
-    socket.on("message:send", async (data, callback) => {
+      socket.on("message:send", async (data, callback) => {
       try {
-        const { receiverId, text, fileUrl, messageType, fileType } = data;
+        const { receiverId, text, fileUrl, messageType, fileType, replyTo } = data;
 
         const actualMessageType = messageType || fileType || "text";
         const hasText = text && text.trim() !== "";
@@ -92,11 +92,22 @@ const setupSocketHandlers = (io) => {
           text: hasText ? text.trim() : "",
           messageType: actualMessageType,
           fileUrl: hasFile ? fileUrl.trim() : "",
+          replyTo: replyTo || null,
           status: "sent",
         });
 
         // Populate sender info for the response
         await newMessage.populate("sender", "name mobilenumber avatar");
+        if (newMessage.replyTo) {
+          await newMessage.populate({
+            path: "replyTo",
+            select: "text messageType fileUrl sender isDeletedForEveryone",
+            populate: {
+              path: "sender",
+              select: "name",
+            },
+          });
+        }
 
         // ── Acknowledge to the SENDER: single tick ✓ ────────
         callback?.({ success: true, message: newMessage });

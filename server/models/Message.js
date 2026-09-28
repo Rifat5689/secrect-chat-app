@@ -42,6 +42,13 @@ const messageSchema = new mongoose.Schema(
       default: "",
     },
 
+    // ── Reply ──────────────────────────────────────────────
+    replyTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message",
+      default: null,
+    },
+
     // ── Message Reactions ──────────────────────────────────
     reactions: [
       {
