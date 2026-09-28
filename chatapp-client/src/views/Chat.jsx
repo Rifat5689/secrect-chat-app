@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { io } from 'socket.io-client'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const API_URL = import.meta.env.VITE_API_URL || ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && !window.Capacitor ? 'http://localhost:5000' : 'https://secrect-chat-app.onrender.com')
 
 // ── SVG Icon Components (Professional, minimal line icons) ────────────
 const Icons = {
