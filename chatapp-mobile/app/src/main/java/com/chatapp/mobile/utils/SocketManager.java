@@ -10,7 +10,8 @@ import io.socket.client.IO;
 import io.socket.client.Socket;
 
 public class SocketManager {
-    private static final String SOCKET_URL = "https://secrect-chat-app.onrender.com";
+    // private static final String SOCKET_URL = "https://secrect-chat-app.onrender.com";
+    private static final String SOCKET_URL = "https://encrypts-deazb0b0aadygxed.centralindia-01.azurewebsites.net";
     private static Socket mSocket;
 
     public static synchronized Socket getSocket(String token) {

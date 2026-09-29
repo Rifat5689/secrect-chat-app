@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { io } from 'socket.io-client'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && !window.Capacitor ? 'http://localhost:5000' : 'https://secrect-chat-app.onrender.com')
+// const API_URL = import.meta.env.VITE_API_URL || ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && !window.Capacitor ? 'http://localhost:5000' : 'https://secrect-chat-app.onrender.com')
+const API_URL = import.meta.env.VITE_API_URL || ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && !window.Capacitor ? 'http://localhost:5000' : 'https://encrypts-deazb0b0aadygxed.centralindia-01.azurewebsites.net')
 
 // ── SVG Icon Components (Professional, minimal line icons) ────────────
 const Icons = {
@@ -231,6 +232,10 @@ export default function Chat() {
   const messagesEndRef = useRef(null)
   const typingTimeoutRef = useRef(null)
   const longPressTimerRef = useRef(null)
+  
+  // Swipe to reply
+  const touchStartX = useRef(null)
+  const touchStartY = useRef(null)
 
   const [friendTypingId, setFriendTypingId] = useState(null)
   const [amTyping, setAmTyping] = useState(false)
@@ -498,6 +503,27 @@ export default function Chat() {
   }
 
   // ── Avatar Renderer ─────────────────────────────────────
+  // Touch Handlers for swipe-to-reply
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }
+  const handleTouchMove = (e, msg) => {
+    if (!touchStartX.current) return
+    const dx = e.touches[0].clientX - touchStartX.current
+    const dy = e.touches[0].clientY - touchStartY.current
+    if (Math.abs(dy) > 20) { touchStartX.current = null; return } // user is scrolling vertically
+    if (dx > 60) {
+      if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(50)
+      setReplyingTo(msg)
+      touchStartX.current = null // trigger only once
+    }
+  }
+  const handleTouchEnd = () => {
+    touchStartX.current = null
+    touchStartY.current = null
+  }
+
   const renderAvatar = (name, avatar, size = 44, fontSize = 18) => {
     if (avatar && avatar.startsWith('http')) {
       return <img src={avatar} alt={name} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover' }} className="sc-avatar" />
@@ -702,7 +728,7 @@ export default function Chat() {
         {/* ═══ SIDEBAR ═══ */}
         <aside className={`sc-sidebar ${activeFriend ? 'sc-hide-mobile' : ''}`} style={{ width: 380, minWidth: 380, height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-sidebar)', borderRight: '1px solid var(--border-color)', transition: 'background-color var(--transition-smooth)' }}>
           {/* Header */}
-          <div style={{ padding: '10px 16px', backgroundColor: 'var(--bg-header)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 56, transition: 'background-color var(--transition-smooth)' }}>
+          <div className="sc-safe-pt-sidebar" style={{ padding: '10px 16px', backgroundColor: 'var(--bg-header)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 56, transition: 'background-color var(--transition-smooth)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', position: 'relative' }} onClick={(e) => { e.stopPropagation(); setProfileMenuOpen(!profileMenuOpen) }}>
               {renderAvatar(myProfile.name, myProfile.avatar, 38, 15)}
               <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-header)', letterSpacing: '-0.01em' }}>{myProfile.name}</span>
@@ -881,8 +907,8 @@ export default function Chat() {
         {/* ═══ CHAT PANEL ═══ */}
         {activeFriend ? (
           <main className="sc-chat-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', backgroundColor: 'var(--bg-chat)', transition: 'background-color var(--transition-smooth)' }}>
-            {/* Chat Header — sticky so it stays visible while scrolling on mobile */}
-            <div style={{ padding: '8px 16px', backgroundColor: 'var(--bg-header)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 56, flexShrink: 0, transition: 'background-color var(--transition-smooth)', position: 'sticky', top: 0, zIndex: 10 }}>
+            {/* Chat Header */}
+            <div className="sc-safe-pt-chat" style={{ padding: '8px 16px', backgroundColor: 'var(--bg-header)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 56, flexShrink: 0, transition: 'background-color var(--transition-smooth)', zIndex: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <button onClick={() => setActiveFriend(null)} className="sc-show-mobile-only" style={{ padding: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-header)' }}>
                   <Icons.ArrowLeft size={22} />
@@ -959,13 +985,22 @@ export default function Chat() {
                   <>
                     {messages.map((msg, index) => {
                       const dh = getDateHeader(msg.createdAt), show = dh !== lastH; lastH = dh
-                      const isMe = msg.sender._id === myData.id || msg.sender === myData.id
+                      const isMe = msg.sender?._id === myData.id || msg.sender === myData.id
                       const hasMedia = (msg.messageType==='image'||msg.messageType==='video') && !msg.isDeletedForEveryone
                       const hasText = msg.text && !msg.isDeletedForEveryone
                       
-                      const emojiRegex = /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+$/u;
-                      const isOnlyEmoji = hasText && emojiRegex.test(msg.text) && msg.text.trim().length > 0;
-                      const emojiCount = isOnlyEmoji ? [...msg.text.replace(/\s/g, '')].length : 0;
+                      let isOnlyEmoji = false;
+                      let emojiCount = 0;
+                      if (hasText) {
+                        try {
+                          const emojiRegex = new RegExp('^[\\p{Emoji_Presentation}\\p{Extended_Pictographic}\\s]+$', 'u');
+                          isOnlyEmoji = emojiRegex.test(msg.text) && msg.text.trim().length > 0;
+                          emojiCount = isOnlyEmoji ? [...msg.text.replace(/\\s/g, '')].length : 0;
+                        } catch (e) {
+                          // Older browsers might not support ES2018 unicode property escapes
+                          isOnlyEmoji = false;
+                        }
+                      }
                       const isBigEmoji = isOnlyEmoji && !hasMedia && msg.messageType === 'text' && emojiCount > 0 && emojiCount <= 3;
 
                       return (
@@ -975,7 +1010,8 @@ export default function Chat() {
                               <span style={{ backgroundColor: 'var(--date-bubble)', color: 'var(--text-secondary)', fontSize: 11.5, fontWeight: 500, padding: '5px 14px', borderRadius: 'var(--radius-xl)', letterSpacing: 0.2 }}>{dh}</span>
                             </div>
                           )}
-                          <div style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', marginBottom: 3, position: 'relative' }}>
+                          <div style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', marginBottom: 3, position: 'relative' }}
+                            onTouchStart={handleTouchStart} onTouchMove={(e) => handleTouchMove(e, msg)} onTouchEnd={handleTouchEnd}>
                             {/* Long-press reaction bar */}
                             {!msg.isDeletedForEveryone && reactionBarMsgId === msg._id && (
                               <div className="sc-reaction-bar sc-reaction-bar--visible" style={{ position: 'absolute', top: -36, alignItems: 'center', gap: 2, backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-md)', zIndex: 30, ...(isMe ? { right: 0 } : { left: 0 }) }}>
@@ -1021,7 +1057,7 @@ export default function Chat() {
                                           {msg.replyTo.messageType === 'image' && <Icons.Image size={14} />}
                                           {msg.replyTo.messageType === 'video' && <Icons.Video size={14} />}
                                           {msg.replyTo.messageType === 'audio' && <Icons.Mic size={14} />}
-                                          {msg.replyTo.messageType.charAt(0).toUpperCase() + msg.replyTo.messageType.slice(1)}
+                                          {(msg.replyTo.messageType || 'text').charAt(0).toUpperCase() + (msg.replyTo.messageType || 'text').slice(1)}
                                         </span>
                                       )}
                                     </div>
@@ -1045,7 +1081,7 @@ export default function Chat() {
                                   {msg.text && (
                                     <p style={{ fontSize: isBigEmoji ? (emojiCount === 1 ? 48 : emojiCount === 2 ? 40 : 32) : 15, lineHeight: isBigEmoji ? 1.2 : 1.4, margin: 0, color: 'var(--text-primary)', whiteSpace: 'pre-wrap', padding: hasMedia ? '5px 6px 0 6px' : (isBigEmoji ? '0 0 14px 0' : 0), wordBreak: 'break-word' }}>
                                       {msg.text}
-                                      {!isBigEmoji && <span style={{ display: 'inline-block', width: 50, height: 1 }}></span>}
+                                      {!isBigEmoji && <span style={{ display: 'inline-block', width: 70, height: 1 }}></span>}
                                     </p>
                                   )}
                                 </>
@@ -1178,7 +1214,7 @@ export default function Chat() {
                           {replyingTo.messageType === 'image' && <Icons.Image size={14} />}
                           {replyingTo.messageType === 'video' && <Icons.Video size={14} />}
                           {replyingTo.messageType === 'audio' && <Icons.Mic size={14} />}
-                          {replyingTo.messageType.charAt(0).toUpperCase() + replyingTo.messageType.slice(1)}
+                          {(replyingTo.messageType || 'text').charAt(0).toUpperCase() + (replyingTo.messageType || 'text').slice(1)}
                         </span>
                       )}
                     </span>
@@ -1207,7 +1243,7 @@ export default function Chat() {
                   {/* Emoji Picker Overlay */}
                   {inputEmojiPickerOpen && (
                     <>
-                      <div onClick={() => setInputEmojiPickerOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 90 }}></div>
+                      <div onClick={() => setInputEmojiPickerOpen(false)} onTouchStart={() => setInputEmojiPickerOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 90, backgroundColor: 'rgba(0,0,0,0.01)' }}></div>
                       <div className="sc-scale-in" onClick={e=>e.stopPropagation()} style={{ position: 'absolute', bottom: 56, left: 0, backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.15)', zIndex: 100, width: 300, height: 300, display: 'flex', flexDirection: 'column' }}>
                         <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 6, alignContent: 'start', paddingRight: 4 }}>
                           {ALL_EMOJIS.map((emoji, i) => (
@@ -1269,11 +1305,12 @@ export default function Chat() {
                 )}
               </div>
             </div>
+          </div>
 
-            {/* Contact Drawer */}
+          {/* Contact Drawer */}
             {isDrawerOpen && (
               <div className="sc-slide-in sc-contact-drawer" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 340, backgroundColor: 'var(--bg-sidebar)', borderLeft: '1px solid var(--border-color)', zIndex: 100, boxShadow: '-4px 0 16px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ padding: '12px 16px', backgroundColor: 'var(--bg-header)', display: 'flex', alignItems: 'center', gap: 16, minHeight: 56 }}>
+                <div className="sc-safe-pt-drawer" style={{ padding: '12px 16px', backgroundColor: 'var(--bg-header)', display: 'flex', alignItems: 'center', gap: 16, minHeight: 56 }}>
                   <button onClick={() => setIsDrawerOpen(false)} className="sc-btn-icon-header"><Icons.X size={18} /></button>
                   <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-header)', margin: 0 }}>Contact Info</h3>
                 </div>

@@ -25,8 +25,9 @@ const server = http.createServer(app);
 // ── Initialize Socket.IO ───────────────────────────────────
 const io = new Server(server, {
   cors: {
-    origin: "*", // Allow all connections
-    methods: ["GET", "POST"],
+    origin: ['https://secret-chatapp-af1b9.web.app', 'http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
   },
 });
 app.set("io", io);
@@ -36,8 +37,13 @@ connectDatabase();
 
 // ── Global Middleware ──────────────────────────────────────
 
-// Allow requests from all origins
-app.use(cors());
+// Allow requests from specific origins
+app.use(cors({
+  origin: ['https://secret-chatapp-af1b9.web.app', 'http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 
 // Parse incoming JSON request bodies
 app.use(express.json());
