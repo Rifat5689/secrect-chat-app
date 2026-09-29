@@ -52,6 +52,5 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'encrypts'
-          slot-name: 'Production'
           package: .
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_C9D2D9C9EADC4FE2ACB42A5F6D4C621F }}
