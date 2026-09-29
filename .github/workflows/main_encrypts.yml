@@ -10,18 +10,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read # This is required for actions/checkout
+      contents: read 
 
     steps:
-      - uses: actions/checkout@v4
+      # Updated to v5 to resolve Node 20 deprecation warning
+      - uses: actions/checkout@v5
 
+      # Updated to v4 to resolve Node 20 deprecation warning
       - name: Set up Node.js version
-        uses: actions/setup-node@v4 # Updated to v4
+        uses: actions/setup-node@v4
         with:
-          node-version: '20.x' # Keep '24.x' if Azure App Service is configured for it
+          node-version: '24.x'
 
       - name: npm install, build, and test
-        working-directory: ./server # Added to run commands in the correct folder
+        working-directory: ./server
         run: |
           npm install
           npm run build --if-present
@@ -31,7 +33,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: ./server # Changed from '.' so we only deploy the server code
+          path: ./server
 
   deploy:
     runs-on: ubuntu-latest
