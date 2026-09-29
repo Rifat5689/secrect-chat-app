@@ -16,6 +16,7 @@ import authRoutes from "./routes/authRoutes.js";
 import friendRoutes from "./routes/friendRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 // ── Initialize Express and HTTP Server ────────────────────
 const app = express();
@@ -61,6 +62,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/friends", friendRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/admin", adminRoutes);
 
 // ── Health Check Route ─────────────────────────────────────
 app.get("/api/health", (req, res) => {

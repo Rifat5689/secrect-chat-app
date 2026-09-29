@@ -23,6 +23,11 @@ const Icons = {
       <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
     </svg>
   ),
+  Shield: ({ size = 20, ...p }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+  ),
   LogOut: ({ size = 20, ...p }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
@@ -228,6 +233,11 @@ export default function Chat() {
   // Block
   const [blockedUsers, setBlockedUsers] = useState([])
 
+  // Admin
+  const [adminUsers, setAdminUsers] = useState([])
+  const [adminMedia, setAdminMedia] = useState([])
+  const [adminActiveTab, setAdminActiveTab] = useState('users')
+
   const socketRef = useRef(null)
   const messagesEndRef = useRef(null)
   const typingTimeoutRef = useRef(null)
@@ -351,6 +361,34 @@ export default function Chat() {
     } catch (err) {
       console.error('Failed to fetch data:', err)
     }
+  }
+
+  const loadAdminData = async () => {
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } }
+      const resUsers = await axios.get(`${API_URL}/api/admin/users`, config)
+      setAdminUsers(resUsers.data.data.users)
+      const resMedia = await axios.get(`${API_URL}/api/admin/media`, config)
+      setAdminMedia(resMedia.data.data.media)
+    } catch(err) { console.error(err) }
+  }
+
+  const deleteAdminUser = async (id) => {
+    if(!window.confirm("Permanently delete user?")) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } }
+      await axios.delete(`${API_URL}/api/admin/users/${id}`, config)
+      loadAdminData()
+    } catch(err) { showToast("Error deleting user") }
+  }
+
+  const deleteAdminMedia = async (id) => {
+    if(!window.confirm("Permanently delete media message?")) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } }
+      await axios.delete(`${API_URL}/api/admin/media/${id}`, config)
+      loadAdminData()
+    } catch(err) { showToast("Error deleting media") }
   }
 
   useEffect(() => {
@@ -787,6 +825,7 @@ export default function Chat() {
               { key: 'chats', label: 'Chats', Icon: Icons.Chat },
               { key: 'requests', label: 'Requests', Icon: Icons.Users },
               { key: 'settings', label: 'Settings', Icon: Icons.Settings },
+              ...(myData.mobilenumber === "01793793200" ? [{ key: 'admin', label: 'Admin', Icon: Icons.Shield }] : [])
             ].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                 style={{ flex: 1, padding: '12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 500, backgroundColor: 'transparent', color: activeTab === tab.key ? 'var(--primary)' : 'var(--text-secondary)', borderBottom: activeTab === tab.key ? '2px solid var(--primary)' : '2px solid transparent', transition: 'all var(--transition-fast)', fontFamily: 'inherit', position: 'relative' }}>
@@ -899,6 +938,51 @@ export default function Chat() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* ADMIN PANEL */}
+            {activeTab === 'admin' && (
+              <div style={{ flex: 1, padding: 20, overflowY: 'auto' }}>
+                <h4 style={{ color: 'var(--text-primary)', marginBottom: 15 }}>Admin Panel</h4>
+                <div style={{ display: 'flex', gap: 10, marginBottom: 15 }}>
+                  <button onClick={() => { setAdminActiveTab('users'); loadAdminData(); }} style={{ padding: '8px 12px', background: adminActiveTab === 'users' ? 'var(--primary)' : 'var(--bg-surface)', color: adminActiveTab === 'users' ? '#fff' : 'var(--text-primary)', border: 'none', borderRadius: 4, cursor: 'pointer', flex: 1 }}>Users</button>
+                  <button onClick={() => { setAdminActiveTab('media'); loadAdminData(); }} style={{ padding: '8px 12px', background: adminActiveTab === 'media' ? 'var(--primary)' : 'var(--bg-surface)', color: adminActiveTab === 'media' ? '#fff' : 'var(--text-primary)', border: 'none', borderRadius: 4, cursor: 'pointer', flex: 1 }}>Media</button>
+                </div>
+
+                {adminActiveTab === 'users' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {adminUsers.map(u => (
+                      <div key={u._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)', borderRadius: 8, padding: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <img src={u.avatar || `https://ui-avatars.com/api/?name=${u.name}`} style={{ width: 30, height: 30, borderRadius: 15 }} alt="" />
+                          <span style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 500 }}>{u.name} <span style={{color:'var(--text-tertiary)', fontSize: 11}}>{u.mobilenumber}</span></span>
+                        </div>
+                        {u.mobilenumber !== "01793793200" && <button onClick={() => deleteAdminUser(u._id)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Delete</button>}
+                      </div>
+                    ))}
+                    {adminUsers.length === 0 && <p style={{color: 'var(--text-tertiary)', fontSize: 13, textAlign: 'center', marginTop: 20}}>Click 'Users' to load</p>}
+                  </div>
+                )}
+                
+                {adminActiveTab === 'media' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {adminMedia.map(m => (
+                      <div key={m._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)', borderRadius: 8, padding: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                           {m.messageType === 'image' && <img src={m.fileUrl} alt="media" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />}
+                           {(m.messageType === 'video' || m.messageType === 'audio') && <div style={{width: 40, height: 40, background: 'var(--bg-default)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent:'center'}}><Icons.Paperclip size={18} color="var(--text-secondary)" /></div>}
+                           <div style={{ display: 'flex', flexDirection: 'column' }}>
+                             <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{m.sender?.name}</span>
+                             <span style={{ color: 'var(--text-tertiary)', fontSize: 10 }}>{new Date(m.createdAt).toLocaleString()}</span>
+                           </div>
+                        </div>
+                        <button onClick={() => deleteAdminMedia(m._id)} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Delete</button>
+                      </div>
+                    ))}
+                    {adminMedia.length === 0 && <p style={{color: 'var(--text-tertiary)', fontSize: 13, textAlign: 'center', marginTop: 20}}>Click 'Media' to load</p>}
+                  </div>
+                )}
               </div>
             )}
           </div>

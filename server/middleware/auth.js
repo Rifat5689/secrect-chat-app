@@ -48,4 +48,25 @@ const protect = async (req, res, next) => {
   }
 };
 
-export { protect };
+/**
+ * Admin Protect Middleware
+ * ────────────────────────
+ * Requires the user to be logged in and their mobile number to be exactly 01793793200.
+ */
+const adminProtect = async (req, res, next) => {
+  try {
+    // First run the standard protect middleware to attach req.user
+    await protect(req, res, () => {
+      // Check if the authenticated user is the special admin
+      if (req.user && req.user.mobilenumber === "01793793200") {
+        next();
+      } else {
+        return sendError(res, 403, "Admin access denied.");
+      }
+    });
+  } catch (error) {
+    return sendError(res, 500, "Admin authentication failed.");
+  }
+};
+
+export { protect, adminProtect };
