@@ -1,6 +1,3 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
 name: Build and deploy Node.js app to Azure Web App - encrypts
 
 on:
@@ -13,17 +10,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read # This is required for actions/checkout
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Node.js version
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4 # Updated to v4
         with:
-          node-version: '24.x'
+          node-version: '20.x' # Keep '24.x' if Azure App Service is configured for it
 
       - name: npm install, build, and test
+        working-directory: ./server # Added to run commands in the correct folder
         run: |
           npm install
           npm run build --if-present
@@ -33,7 +31,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: ./server # Changed from '.' so we only deploy the server code
 
   deploy:
     runs-on: ubuntu-latest
