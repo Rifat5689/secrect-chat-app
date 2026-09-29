@@ -892,7 +892,7 @@ export default function Chat() {
                 {/* About */}
                 <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-lg)', padding: 16, border: '1px solid var(--border-color)' }}>
                   <h5 style={{ fontSize: 11, fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>About</h5>
-                  {[['Encryption','End-to-end encrypted'],['Server','NodeJS WebSockets'],['Media','Cloudinary CDN']].map(([l,v])=>(
+                  {[['Encryption','End-to-end encrypted'],['Server','NodeJS WebSockets'],['Media','Cloudflare R2']].map(([l,v])=>(
                     <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border-color)', fontSize: 13 }}>
                       <span style={{ color: 'var(--text-secondary)' }}>{l}</span>
                       <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{v}</span>
